@@ -1,4 +1,4 @@
-const API = "http://localhost:8001";
+const API = "http://localhost:8000";
 
 function switchTab(name) {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
@@ -11,6 +11,32 @@ function switchTab(name) {
   section.classList.remove("hidden");
   section.classList.add("active");
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("checker-file").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    const label = document.querySelector("label[for='checker-file']");
+    if (file) {
+      label.textContent = `Fichier prêt : ${file.name}`;
+      label.style.color = "#48bb78";
+    } else {
+      label.textContent = "Glisse ton manuscrit ici ou clique pour choisir";
+      label.style.color = "";
+    }
+  });
+
+  document.getElementById("rw-files").addEventListener("change", (e) => {
+    const files = e.target.files;
+    const label = document.querySelector("label[for='rw-files']");
+    if (files.length > 0) {
+      label.textContent = `Option 1 — ${files.length} fichier(s) sélectionné(s)`;
+      label.style.color = "#48bb78";
+    } else {
+      label.textContent = "Option 1 — Upload corpus (fichiers .tex / .docx / .md)";
+      label.style.color = "";
+    }
+  });
+});
 
 // ─── MODULE 1 : CHECKER ────────────────────────────────────────────────────
 
