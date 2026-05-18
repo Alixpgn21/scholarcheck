@@ -3,21 +3,47 @@ Vérifie l'existence et la cohérence d'une référence bibliographique.
 """
 import asyncio
 from .api_client import query_crossref, query_openalex, query_semantic_scholar
-
+import re
 
 YEAR_TOLERANCE = 1  # Tolérance ±1 an sur l'année
+
+
+def _extract_metadata_from_raw(raw_ref: str) -> tuple[int | None, list[str]]:
+    """Extrait l'année et les noms d'auteurs depuis un texte de référence brut."""
+    year_match = re.search(r"\b(1[5-9]\d{2}|20\d{2})\b", raw_ref)
+    year = int(year_match.group(1)) if year_match else None
+    # Noms avant la première parenthèse ou avant l'année : "Smith, J., & Doe, J. (2024)"
+    authors_part = re.split(r"\(\d{4}\)|\.\s+[A-Z]", raw_ref)[0]
+    # Extraire les noms de famille (support tirets, camelCase, accents)
+    # Capture tout mot commençant par majuscule jusqu'à virgule/&/et al
+    surnames = re.findall(r"\b([A-Z][A-Za-zé\-]+)(?:,|\s+&|\s+et\s+al)", authors_part)
+    return year, surnames
 
 
 async def verify_reference(raw_ref: str, expected_year: int = None, expected_authors: list[str] = None) -> dict:
     """
     Interroge les 3 APIs en parallèle et consolide le résultat.
-    Retourne un rapport de vérification.
+    Si un DOI est trouvé dans le texte brut, on l'utilise en priorité.
     """
-    crossref, openalex, semantic = await asyncio.gather(
-        query_crossref(title=raw_ref),
-        query_openalex(title=raw_ref),
-        query_semantic_scholar(title=raw_ref),
-    )
+    doi_match = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9a-z]+", raw_ref)
+    doi = doi_match.group(0) if doi_match else None
+
+    # Auto-extraire année et auteurs si non fournis
+    if expected_year is None and expected_authors is None:
+        expected_year, expected_authors = _extract_metadata_from_raw(raw_ref)
+
+    if doi:
+        crossref, openalex, semantic = await asyncio.gather(
+            query_crossref(doi=doi),
+            query_openalex(doi=doi),
+            query_semantic_scholar(doi=doi),
+        )
+    else:
+        crossref, openalex, semantic = await asyncio.gather(
+            query_crossref(title=raw_ref),
+            query_openalex(title=raw_ref),
+            query_semantic_scholar(title=raw_ref),
+        )
 
     results = [r for r in [crossref, openalex, semantic] if r]
 
@@ -47,7 +73,15 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
 def _pick_best(results: list[dict]) -> dict:
     # Priorité CrossRef > OpenAlex > Semantic Scholar
     priority = {"crossref": 0, "openalex": 1, "semantic_scholar": 2}
-    return sorted(results, key=lambda r: priority.get(r["source"], 99))[0]
+    ranked = sorted(results, key=lambda r: priority.get(r["source"], 99))
+    best = ranked[0]
+    # CrossRef retourne rarement un abstract — on le complète depuis une autre source
+    if not best.get("abstract"):
+        for r in ranked[1:]:
+            if r.get("abstract"):
+                best = {**best, "abstract": r["abstract"]}
+                break
+    return best
 
 
 def _check_consistency(match: dict, expected_year: int | None, expected_authors: list[str] | None) -> list[str]:

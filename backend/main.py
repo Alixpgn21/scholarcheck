@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from routers.checker import router as checker_router
 from routers.related_work import router as related_work_router
@@ -28,4 +29,5 @@ def health():
     return {"status": "ok", "service": "ScholarCheck"}
 
 
-app.mount("/", StaticFiles(directory="../frontend", html=True), name="frontend")
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

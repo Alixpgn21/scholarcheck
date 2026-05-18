@@ -22,8 +22,6 @@ def parse_file(file_path: str) -> dict:
 def parse_latex(content: str) -> dict:
     from pylatexenc.latex2text import LatexNodes2Text
 
-    text = LatexNodes2Text().latex_to_text(content)
-
     # Extraire les clés de citation \cite{key1, key2}
     cite_keys = re.findall(r"\\cite(?:p|t|alt)?\{([^}]+)\}", content)
     keys = []
@@ -32,9 +30,17 @@ def parse_latex(content: str) -> dict:
 
     # Extraire les blocs \bibitem
     bibitem_pattern = re.findall(
-        r"\\bibitem\{([^}]+)\}(.+?)(?=\\bibitem|\n\n|$)", content, re.DOTALL
+        r"\\bibitem\{([^}]+)\}(.+?)(?=\\bibitem|\n\n|$|\\end\{thebibliography\})", content, re.DOTALL
     )
     bibliography = {key: raw.strip() for key, raw in bibitem_pattern}
+
+    # Préserver les citations dans le texte brut
+    content_for_text = re.sub(r"\\cite(?:p|t|alt)?\{([^}]+)\}", lambda m: f"[{m.group(1)}]", content)
+    
+    # Supprimer la bibliographie du texte brut pour éviter les faux positifs
+    content_for_text = re.sub(r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}", "", content_for_text, flags=re.DOTALL)
+
+    text = LatexNodes2Text().latex_to_text(content_for_text)
 
     return {
         "text": text,

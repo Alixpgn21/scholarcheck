@@ -4,6 +4,7 @@ import aiofiles
 import os
 import uuid
 import json
+from pathlib import Path
 
 from modules.parser import parse_file
 from modules.reference_checker.api_client import query_openalex, query_semantic_scholar
@@ -13,8 +14,8 @@ from modules.related_work.generator import generate_related_work
 
 router = APIRouter(prefix="/related-work", tags=["Related Work Generator"])
 
-UPLOAD_DIR = "../uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 @router.post("/generate", summary="Génère une section Related Work depuis un corpus")
@@ -33,7 +34,7 @@ async def generate_from_corpus(
             continue
 
         file_id = str(uuid.uuid4())
-        save_path = os.path.join(UPLOAD_DIR, f"{file_id}{ext}")
+        save_path = str(UPLOAD_DIR / f"{file_id}{ext}")
         async with aiofiles.open(save_path, "wb") as f:
             await f.write(await file.read())
 
@@ -121,5 +122,13 @@ async def generate_from_dois(payload: dict):
         "topic": topic,
         "document_count": len(documents),
         "cluster_count": len(clusters),
+        "clusters": [
+            {
+                "id": c["cluster_id"],
+                "label": c["label"],
+                "documents": [{"title": d["title"], "year": d["year"]} for d in c["documents"]],
+            }
+            for c in clusters
+        ],
         "related_work": related_work_text,
     }

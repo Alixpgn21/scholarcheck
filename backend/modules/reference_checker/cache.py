@@ -8,7 +8,7 @@ import functools
 from pathlib import Path
 
 # Création de la base de données de cache
-CACHE_DIR = Path(".cache")
+CACHE_DIR = Path(__file__).parent.parent.parent / ".cache"
 CACHE_DIR.mkdir(exist_ok=True)
 DB_PATH = CACHE_DIR / "api_cache.db"
 

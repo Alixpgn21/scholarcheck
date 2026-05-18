@@ -149,7 +149,7 @@ async function runRelatedWork() {
 }
 
 function renderRWResult(data) {
-  const clusterTags = data.clusters.map(c =>
+  const clusterTags = (data.clusters || []).map(c =>
     `<span class="rw-cluster-tag">${escHtml(c.label)} (${c.documents.length} docs)</span>`
   ).join("");
 

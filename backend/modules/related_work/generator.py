@@ -27,29 +27,30 @@ def _call_llm(prompt: str) -> str:
         AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
     )
     
-    # 1. AWS Bedrock
+    # 1. AWS Bedrock (API Converse unifiée pour Anthropic, Llama, Nova, Mistral)
     if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
         import boto3
+        from config import AWS_BEDROCK_MODEL_ID
         bedrock = boto3.client(
             service_name='bedrock-runtime',
             region_name=AWS_REGION,
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY
         )
-        body = json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 2048,
-            "messages": [{"role": "user", "content": prompt}]
-        })
-        response = bedrock.invoke_model(body=body, modelId="anthropic.claude-3-haiku-20240307-v1:0")
-        return json.loads(response.get('body').read()).get('content')[0].get('text')
+        
+        response = bedrock.converse(
+            modelId=AWS_BEDROCK_MODEL_ID,
+            messages=[{"role": "user", "content": [{"text": prompt}]}],
+            inferenceConfig={"maxTokens": 2048, "temperature": 0.2}
+        )
+        return response['output']['message']['content'][0]['text']
         
     # 2. Anthropic API
     elif ANTHROPIC_API_KEY:
         from anthropic import Anthropic
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
         resp = client.messages.create(
-            model="claude-3-haiku-20240307",
+            model="claude-haiku-4-5-20251001",
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}]
         )

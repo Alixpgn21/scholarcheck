@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import aiofiles
 import os
 import uuid
+from pathlib import Path
 
 from modules.parser import parse_file, extract_citing_sentences
 from modules.reference_checker.verifier import verify_reference
@@ -11,8 +12,8 @@ from modules.reference_checker.api_client import query_crossref, query_openalex
 
 router = APIRouter(prefix="/checker", tags=["Reference Checker"])
 
-UPLOAD_DIR = "../uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 class ReferenceReport(BaseModel):
@@ -30,7 +31,7 @@ async def upload_and_check(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Format non supporté : {ext}")
 
     file_id = str(uuid.uuid4())
-    save_path = os.path.join(UPLOAD_DIR, f"{file_id}{ext}")
+    save_path = str(UPLOAD_DIR / f"{file_id}{ext}")
 
     async with aiofiles.open(save_path, "wb") as f:
         content = await file.read()
