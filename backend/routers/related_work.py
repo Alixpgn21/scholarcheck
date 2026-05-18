@@ -55,6 +55,8 @@ async def generate_from_corpus(
             "authors": (meta or {}).get("authors", []),
             "year": (meta or {}).get("year"),
             "doi": (meta or {}).get("doi"),
+            "openalex_id": (meta or {}).get("openalex_id"),
+            "referenced_works": (meta or {}).get("referenced_works", []),
         })
 
     if not documents:
@@ -104,6 +106,8 @@ async def generate_from_dois(payload: dict):
                 "authors": meta.get("authors", []),
                 "year": meta.get("year"),
                 "doi": doi,
+                "openalex_id": meta.get("openalex_id"),
+                "referenced_works": meta.get("referenced_works", []),
             })
 
     if not documents:

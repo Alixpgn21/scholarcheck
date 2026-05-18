@@ -89,6 +89,8 @@ async def query_openalex(title: str = None, doi: str = None) -> dict | None:
             "year": item.get("publication_year"),
             "abstract": abstract,
             "url": item.get("id"),
+            "openalex_id": item.get("id"),
+            "referenced_works": item.get("referenced_works", []),
         }
 
 
