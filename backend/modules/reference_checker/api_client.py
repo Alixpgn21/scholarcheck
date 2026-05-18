@@ -2,6 +2,7 @@
 Clients pour CrossRef, OpenAlex et Semantic Scholar.
 """
 import httpx
+from .cache import cached_api_call
 from config import (
     CROSSREF_BASE_URL,
     OPENALEX_BASE_URL,
@@ -11,6 +12,7 @@ from config import (
 )
 
 
+@cached_api_call
 async def query_crossref(title: str = None, doi: str = None) -> dict | None:
     params = {"mailto": CROSSREF_EMAIL}
     async with httpx.AsyncClient(timeout=10) as client:
@@ -47,6 +49,7 @@ async def query_crossref(title: str = None, doi: str = None) -> dict | None:
         }
 
 
+@cached_api_call
 async def query_openalex(title: str = None, doi: str = None) -> dict | None:
     async with httpx.AsyncClient(timeout=10) as client:
         if doi:
@@ -89,6 +92,7 @@ async def query_openalex(title: str = None, doi: str = None) -> dict | None:
         }
 
 
+@cached_api_call
 async def query_semantic_scholar(title: str = None, doi: str = None) -> dict | None:
     headers = {}
     if SEMANTIC_SCHOLAR_API_KEY:

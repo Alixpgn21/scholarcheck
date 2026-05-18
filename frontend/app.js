@@ -1,4 +1,4 @@
-const API = "http://localhost:8000";
+const API = "http://localhost:8001";
 
 function switchTab(name) {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));

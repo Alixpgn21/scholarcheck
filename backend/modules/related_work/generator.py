@@ -1,6 +1,6 @@
 """
 Génération de la section Related Work.
-Stratégie : Ollama (local, gratuit) si disponible, sinon template-based.
+Implémente la boucle Self-Refine (Phase 4) et le support multi-LLM (Phase 6).
 """
 import httpx
 import json
@@ -15,12 +15,68 @@ def generate_related_work(
     topic: str = "ce sujet de recherche",
 ) -> str:
     try:
-        return _generate_with_ollama(clusters, embeddings, all_documents, topic)
-    except Exception:
+        return _generate_with_llm(clusters, embeddings, all_documents, topic)
+    except Exception as e:
+        print(f"LLM Generation fallback: {e}")
         return _generate_template(clusters, embeddings, all_documents, topic)
 
 
-def _generate_with_ollama(
+def _call_llm(prompt: str) -> str:
+    from config import (
+        ANTHROPIC_API_KEY, OPENAI_API_KEY, 
+        AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+    )
+    
+    # 1. AWS Bedrock
+    if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+        import boto3
+        bedrock = boto3.client(
+            service_name='bedrock-runtime',
+            region_name=AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        )
+        body = json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 2048,
+            "messages": [{"role": "user", "content": prompt}]
+        })
+        response = bedrock.invoke_model(body=body, modelId="anthropic.claude-3-haiku-20240307-v1:0")
+        return json.loads(response.get('body').read()).get('content')[0].get('text')
+        
+    # 2. Anthropic API
+    elif ANTHROPIC_API_KEY:
+        from anthropic import Anthropic
+        client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        resp = client.messages.create(
+            model="claude-3-haiku-20240307",
+            max_tokens=2048,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return resp.content[0].text
+        
+    # 3. OpenAI API
+    elif OPENAI_API_KEY:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        resp = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return resp.choices[0].message.content
+        
+    # 4. Fallback Ollama Local
+    else:
+        resp = httpx.post(
+            "http://localhost:11434/api/generate",
+            json={"model": "llama3", "prompt": prompt, "stream": False},
+            timeout=120,
+        )
+        resp.raise_for_status()
+        return resp.json()["response"]
+
+
+def _generate_with_llm(
     clusters: list[dict],
     embeddings: np.ndarray,
     all_documents: list[dict],
@@ -37,7 +93,8 @@ def _generate_with_ollama(
 
     corpus_context = "\n\n".join(cluster_summaries)
 
-    prompt = f"""You are an expert academic writer. Write a "Related Work" section for a paper on: {topic}.
+    # ÉTAPE 1 : Génération Initiale (Draft)
+    draft_prompt = f"""You are an expert academic writer. Write a "Related Work" section for a paper on: {topic}.
 
 Available documents grouped by theme:
 {corpus_context}
@@ -46,18 +103,28 @@ STRICT rules:
 1. Cite every claim with [Paper Title] from the corpus above.
 2. Do NOT invent references.
 3. One paragraph per theme group.
-4. Write in academic English (IEEE/NeurIPS style).
-5. Start directly with the text.
+4. Write in academic English.
 
 Write the Related Work section:"""
+    
+    draft_text = _call_llm(draft_prompt)
+    
+    # ÉTAPE 2 : Boucle Self-Refine
+    refine_prompt = f"""Review the following "Related Work" draft against the provided source corpus.
+Your goal is to detect and remove ANY claim or citation in the draft that is NOT explicitly supported by the corpus.
 
-    resp = httpx.post(
-        "http://localhost:11434/api/generate",
-        json={"model": "llama3", "prompt": prompt, "stream": False},
-        timeout=120,
-    )
-    resp.raise_for_status()
-    return resp.json()["response"]
+CORPUS:
+{corpus_context}
+
+DRAFT:
+{draft_text}
+
+Task: Rewrite the DRAFT to fix any hallucinations. If a claim is not in the corpus, remove it.
+Return ONLY the final corrected academic text."""
+
+    refined_text = _call_llm(refine_prompt)
+    
+    return refined_text
 
 
 def _generate_template(
