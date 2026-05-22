@@ -1,0 +1,19 @@
+{
+  "corpus_name": "corpus_5_comprehensive",
+  "description": "Large diverse corpus with 50+ papers covering multiple domains for comprehensive Related Work generation testing",
+  "size": 50,
+  "domains": [
+    "Natural Language Processing",
+    "Computer Vision",
+    "Reinforcement Learning",
+    "Graph Neural Networks",
+    "Multimodal Learning",
+    "Meta-Learning",
+    "Transfer Learning",
+    "Information Retrieval",
+    "Speech Processing",
+    "Knowledge Representation"
+  ],
+  "papers_created": 50,
+  "notes": "See individual JSON files for paper metadata. This corpus tests the system's ability to handle large, diverse sets of papers with proper clustering and section generation across multiple research domains."
+}

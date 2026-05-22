@@ -1,0 +1,11 @@
+{
+  "id": "minimal_1",
+  "title": "Gradient Descent Optimization",
+  "authors": ["S. Boyd", "L. Vandenberghe"],
+  "year": 2004,
+  "venue": "Foundations of Machine Learning",
+  "abstract": null,
+  "doi": "10.1234/ml.2004.001",
+  "url": "https://example.com/no-abstract",
+  "citations": 500
+}

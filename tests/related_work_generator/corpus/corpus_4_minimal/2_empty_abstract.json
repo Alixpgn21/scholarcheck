@@ -1,0 +1,11 @@
+{
+  "id": "minimal_2",
+  "title": "Convolutional Neural Networks for Vision",
+  "authors": ["Y. LeCun", "Y. Bengio"],
+  "year": 2015,
+  "venue": "Computer Vision Review",
+  "abstract": "",
+  "doi": "10.1234/vision.2015.001",
+  "url": "https://example.com/empty-abstract",
+  "citations": 300
+}

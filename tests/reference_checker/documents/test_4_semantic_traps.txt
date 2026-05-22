@@ -1,0 +1,101 @@
+Test 4: Semantic Traps (NLI Contradictions)
+
+This document tests semantic contradictions detected via NLI - where the reference exists but is misused.
+
+---
+
+VACCINE SAFETY CONTRADICTION
+
+Citing statement: "The vaccine was ineffective and caused severe adverse reactions in most participants."
+
+Actual paper: "Safety and efficacy of the BNT162b2 mRNA Covid-19 vaccine"
+Reference: Polack, F. P., Thomas, S. J., Gruber, N., et al. (2020). "Safety and efficacy of the BNT162b2 mRNA Covid-19 vaccine." The New England Journal of Medicine, 383(27):2603–2615. DOI: 10.1056/NEJMoa2034577
+Abstract excerpt: "The BNT162b2 vaccine had 95% efficacy against Covid-19 and was well tolerated with no serious adverse reactions in the trial population."
+
+Expected NLI verdict: CONTRADICTION (score 0.8-0.9 for "suspect")
+Why: The citing statement claims inefficacy and severe reactions, while the abstract explicitly reports high efficacy and good safety.
+
+---
+
+CLIMATE DENIAL CONTRADICTION
+
+Citing statement: "Climate change is primarily caused by solar activity cycles and natural variation."
+
+Actual paper: "Attribution of observed global temperature change to natural and anthropogenic causes"
+Reference: Meehl, G. A., Arblaster, J. M., Fasullo, J. T., et al. (2013). "Attribution of observed global temperature change to natural and anthropogenic causes." Journal of Geophysical Research, 118(3):1209–1224. DOI: 10.1002/jgrd.50239
+Abstract excerpt: "Attribution analysis shows that global temperature increases are primarily driven by increases in anthropogenic greenhouse gas concentrations, with natural forcing having contributed minimally."
+
+Expected NLI verdict: CONTRADICTION (score 0.85-0.95 for "suspect")
+Why: The citation attributes warming to natural cycles, but the abstract explicitly shows anthropogenic causes dominate.
+
+---
+
+GPT-4 AS AGI OVERSTATEMENT
+
+Citing statement: "GPT-4 has achieved artificial general intelligence (AGI), solving all classes of intellectual tasks."
+
+Actual paper: "GPT-4 Technical Report"
+Reference: OpenAI. (2023). "GPT-4 Technical Report." arXiv preprint arXiv:2303.08774. DOI: 10.48550/arXiv.2303.08774
+Abstract excerpt: "We report the development of GPT-4, a large-scale, multimodal model. While capable across many domains, it exhibits predictable weaknesses on specialized and reasoning tasks."
+
+Expected NLI verdict: CONTRADICTION or AMBIGUOUS (score 0.65-0.85)
+Why: The paper does not claim AGI - it's careful about limitations. The citation overstates capabilities significantly.
+
+---
+
+DEEP LEARNING CAUSATION TRAP
+
+Citing statement: "Deep learning directly causes improvements in human cognition when used as a brain-computer interface."
+
+Actual paper: "Brain-Computer Interfaces and Neural Decoding"
+Reference: Musk, E., Neuralink Team. (2023). "An integrated brain-machine interface platform with thousands of channels." Journal of Medical Internet Research, 25(4):e34504. DOI: 10.2196/34504
+Abstract excerpt: "We present a high-bandwidth brain-computer interface system for neural recording and stimulation. Clinical applications remain experimental."
+
+Expected NLI verdict: CONTRADICTION (score 0.75-0.85 for "suspect")
+Why: The paper describes technical capability, not cognitive enhancement. The citation claims causal cognitive benefit with no such evidence in the paper.
+
+---
+
+INTERPRETABILITY OVERSTATEMENT
+
+Citing statement: "Transformer attention mechanisms have been proven to implement interpretable linguistic rules."
+
+Actual paper: "Attention is Not Explanation"
+Reference: Jain, A., & Wallace, B. C. (2019). "Attention is Not Explanation." In Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (pp. 530–540). DOI: 10.18653/v1/P19-1050
+Abstract excerpt: "We show that attention weights are not a faithful explanation of the model's predictions. The relationship between attention and feature importance is more complex than typically assumed."
+
+Expected NLI verdict: CONTRADICTION (score 0.8-0.9 for "suspect")
+Why: The citation claims attention is interpretable/explainable. The paper directly argues attention is NOT reliable for explanation.
+
+---
+
+MEDICAL EFFICACY CLAIM
+
+Citing statement: "The treatment has been shown to cure diabetes type 2 in all patients."
+
+Actual paper: "Metformin and Lifestyle Interventions for Type 2 Diabetes Prevention"
+Reference: Knowler, W. C., et al. (2002). "Reduction in the incidence of type 2 diabetes with lifestyle intervention or metformin." New England Journal of Medicine, 346(6):393–403. DOI: 10.1056/NEJMoa012512
+Abstract excerpt: "Intensive lifestyle changes and metformin reduced the incidence of diabetes by 58% and 31%, respectively, in high-risk individuals."
+
+Expected NLI verdict: CONTRADICTION (score 0.8-0.9 for "suspect")
+Why: The paper shows *prevention* in high-risk groups (58% reduction), not treatment or cure. The citation falsely claims universal cure.
+
+---
+
+NOTES FOR INTERPRETATION
+
+These are trap cases where:
+1. The reference DOES exist (status: "ok")
+2. The paper IS found in all APIs
+3. BUT semantic analysis (NLI) flags a contradiction
+4. Expected badge: "suspect" or "ambigu" added to the result
+5. Confidence: Still high for finding the paper, but NLI score shows the semantic problem
+
+This tests that the system can distinguish between:
+- Reference verification (does the paper exist?) → YES
+- Semantic validation (is it being used correctly?) → NO
+
+The Reference Checker should return both statuses:
+- Reference status: "ok" (paper found)
+- NLI badge: "suspect" (semantic contradiction detected)
+- Recommendation: Manual review of citation's interpretation

@@ -1,0 +1,11 @@
+{
+  "id": "minimal_3",
+  "title": "Recurrent Neural Networks",
+  "authors": ["S. Hochreiter", "J. Schmidhuber"],
+  "year": 1997,
+  "venue": "Neural Computation",
+  "abstract": "We propose LSTM networks for learning long-term dependencies.",
+  "doi": "10.1162/neco.1997.9.8.1735",
+  "url": "https://example.com/short-abstract",
+  "citations": 50000
+}

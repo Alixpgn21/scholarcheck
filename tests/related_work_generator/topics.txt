@@ -1,0 +1,90 @@
+# Topics for Related Work Generator Testing
+
+## Topics to test with each corpus
+
+### Corpus 1: RAG Basics (corpus_1_rag_basics)
+Topic 1: "retrieval-augmented generation for language models"
+Topic 2: "dense retrieval and semantic search"
+Topic 3: "combining retrieval with neural generation"
+
+### Corpus 2: NLP Diversity (corpus_2_nlp_diversity)
+Topic 1: "pre-training and transfer learning in NLP"
+Topic 2: "transformer models and language understanding"
+Topic 3: "multimodal learning and visual question answering"
+Topic 4: "neural machine translation and sequence-to-sequence models"
+Topic 5: "word embeddings and representation learning"
+
+### Corpus 3: Conflicting Viewpoints (corpus_3_conflicting)
+Topic 1: "scaling laws and model size"
+Topic 2: "limitations and challenges of transformer models"
+Topic 3: "environmental and societal impact of large language models"
+Topic 4: "efficiency vs accuracy trade-offs in deep learning"
+
+### Corpus 4: Minimal Abstracts (corpus_4_minimal)
+Topic 1: "neural network architectures"
+Topic 2: "optimization and training methods"
+Topic 3: "deep learning fundamentals"
+
+### Corpus 5: Comprehensive (corpus_5_comprehensive)
+Topic 1: "modern deep learning architectures"
+Topic 2: "representation learning across domains"
+Topic 3: "efficient inference and scalability"
+Topic 4: "multimodal and cross-domain learning"
+Topic 5: "reinforcement learning and intelligent agents"
+Topic 6: "knowledge representation and reasoning"
+Topic 7: "information retrieval and semantic search"
+Topic 8: "natural language processing applications"
+
+## Ambiguous vs Specific Topics
+
+Ambiguous topics (testing disambiguation):
+- "machine learning"
+- "neural networks"
+- "AI systems"
+- "data analysis"
+
+Specific topics (testing precision):
+- "question answering with dense retrieval"
+- "long-form question answering with RAG"
+- "multimodal representation learning for vision and language"
+- "graph neural networks for knowledge representation"
+- "few-shot learning and meta-learning"
+
+## Testing Combinations
+
+### Single topic, single corpus
+Expected: Clean, focused section
+Test: corpus_1_rag_basics + topic "retrieval-augmented generation"
+
+### Multiple topics, single corpus
+Expected: Sections for each topic
+Test: corpus_2_nlp_diversity + multiple NLP topics
+
+### Conflicting corpus with specific topic
+Expected: System handles conflicting viewpoints gracefully
+Test: corpus_3_conflicting + topic "scaling laws and model efficiency"
+
+### Minimal abstract corpus
+Expected: System generates coherent text despite missing abstracts
+Test: corpus_4_minimal + topic "neural network optimization"
+
+### Comprehensive corpus with broad topic
+Expected: Well-organized multi-section Related Work with clear thematic grouping
+Test: corpus_5_comprehensive + topic "modern deep learning systems"
+
+## Quality Expectations by Topic Specificity
+
+Topic: "machine learning"
+- Expected sections: 3-5 broad themes
+- Risk: Too generic, might include unrelated papers
+- Assessment: Clustering quality
+
+Topic: "attention mechanisms in sequence modeling"
+- Expected sections: 2-3 focused themes
+- Risk: Might miss some related but not directly relevant papers
+- Assessment: Precision vs recall balance
+
+Topic: "retrieval-augmented generation for open-domain QA"
+- Expected sections: 1-2 tightly themed sections
+- Risk: Might miss papers on related components
+- Assessment: Citation appropriateness

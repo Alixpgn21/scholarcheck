@@ -23,11 +23,11 @@ def generate_related_work(
 
 def _call_llm(prompt: str) -> str:
     from config import (
-        ANTHROPIC_API_KEY, OPENAI_API_KEY, 
+        MISTRAL_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY,
         AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
     )
     
-    # 1. AWS Bedrock (API Converse unifiée pour Anthropic, Llama, Nova, Mistral)
+    # 1. AWS Bedrock Mistral (mistral.mistral-large-2402-v1:0)
     if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
         import boto3
         from config import AWS_BEDROCK_MODEL_ID
@@ -37,7 +37,7 @@ def _call_llm(prompt: str) -> str:
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY
         )
-        
+
         response = bedrock.converse(
             modelId=AWS_BEDROCK_MODEL_ID,
             messages=[{"role": "user", "content": [{"text": prompt}]}],
@@ -45,7 +45,20 @@ def _call_llm(prompt: str) -> str:
         )
         return response['output']['message']['content'][0]['text']
         
-    # 2. Anthropic API
+    # 2. Mistral API (if credentials available)
+    elif MISTRAL_API_KEY:
+        from mistralai.client import MistralClient
+        from mistralai.models.chat_message import ChatMessage
+        client = MistralClient(api_key=MISTRAL_API_KEY)
+        resp = client.chat(
+            model="mistral-large-latest",
+            messages=[ChatMessage(role="user", content=prompt)],
+            max_tokens=2048,
+            temperature=0.2
+        )
+        return resp.choices[0].message.content
+
+    # 3. Anthropic API (fallback)
     elif ANTHROPIC_API_KEY:
         from anthropic import Anthropic
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -56,7 +69,7 @@ def _call_llm(prompt: str) -> str:
         )
         return resp.content[0].text
         
-    # 3. OpenAI API
+    # 4. OpenAI API
     elif OPENAI_API_KEY:
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY)
@@ -66,7 +79,7 @@ def _call_llm(prompt: str) -> str:
         )
         return resp.choices[0].message.content
         
-    # 4. Fallback Ollama Local
+    # 5. Fallback Ollama Local
     else:
         resp = httpx.post(
             "http://localhost:11434/api/generate",
