@@ -2,16 +2,28 @@
 Vérifie l'existence et la cohérence d'une référence bibliographique.
 """
 import asyncio
-from .api_client import query_crossref, query_openalex, query_semantic_scholar
 import re
+import datetime
+from .api_client import query_crossref, query_openalex, query_semantic_scholar
 
 YEAR_TOLERANCE = 1  # Tolérance ±1 an sur l'année
 
 
 def _extract_metadata_from_raw(raw_ref: str) -> tuple[int | None, list[str]]:
     """Extrait l'année et les noms d'auteurs depuis un texte de référence brut."""
-    year_match = re.search(r"\b(1[5-9]\d{2}|20\d{2})\b", raw_ref)
+    # Masquer les IDs arXiv (ex: arXiv.1810.04805) avant d'extraire l'année
+    # pour éviter que "1810" soit interprété comme l'an 1810
+    ref_no_arxiv = re.sub(r"[Aa]r[Xx]iv[:/.][\d.]+", "ARXIV", raw_ref)
+    year_match = re.search(r"\b(1[5-9]\d{2}|20\d{2})\b", ref_no_arxiv)
     year = int(year_match.group(1)) if year_match else None
+
+    # Si pas d'année trouvée dans le texte mais qu'un ID arXiv est présent,
+    # dériver l'année depuis l'ID (ex: 1706.03762 → 2017, 1810.04805 → 2018)
+    if year is None:
+        arxiv_id_match = re.search(r"arXiv[:/.](\d{2})(\d{2})\.\d+", raw_ref, re.IGNORECASE)
+        if arxiv_id_match:
+            yy = int(arxiv_id_match.group(1))
+            year = 2000 + yy if yy < 50 else 1900 + yy
 
     # Couper AVANT le titre : le titre commence après les auteurs
     # En LaTeX: auteurs se terminent avant ``Title'' ou "Title"
@@ -68,7 +80,9 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
                 query_openalex(title=title_for_search),
                 query_semantic_scholar(title=title_for_search),
             )
-            results = [r for r in [crossref, openalex, semantic] if r]
+            candidates = [r for r in [crossref, openalex, semantic] if r]
+            # Filtrer les résultats dont le titre est trop différent du titre attendu
+            results = [r for r in candidates if _title_matches(r.get("title"), title_for_search)]
     else:
         search_query = title_for_search or raw_ref
         crossref, openalex, semantic = await asyncio.gather(
@@ -76,7 +90,12 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
             query_openalex(title=search_query),
             query_semantic_scholar(title=search_query),
         )
-        results = [r for r in [crossref, openalex, semantic] if r]
+        candidates = [r for r in [crossref, openalex, semantic] if r]
+        # Filtrer sur similarité titre uniquement si on a un titre extrait propre
+        if title_for_search:
+            results = [r for r in candidates if _title_matches(r.get("title"), title_for_search)]
+        else:
+            results = candidates
 
     if not results:
         return {
@@ -87,7 +106,7 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
             "best_match": None,
         }
 
-    best = _pick_best(results)
+    best = _pick_best(results, expected_year)
     issues = _check_consistency(best, expected_year, expected_authors)
 
     confidence = _compute_confidence(results, issues)
@@ -99,6 +118,22 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
         "sources": [r["source"] for r in results],
         "best_match": best,
     }
+
+
+def _title_matches(api_title: str | None, expected_title: str, threshold: float = 0.65) -> bool:
+    """Vérifie que le titre retourné par l'API ressemble suffisamment au titre attendu.
+    Utilise une similarité simple basée sur les mots communs (Jaccard)."""
+    if not api_title or not expected_title:
+        return False
+    stop = {"the", "a", "an", "of", "in", "on", "for", "and", "or", "with", "is", "to", "at", "by"}
+    api_words = {w.lower() for w in re.findall(r"\b\w+\b", api_title) if w.lower() not in stop and len(w) > 2}
+    exp_words = {w.lower() for w in re.findall(r"\b\w+\b", expected_title) if w.lower() not in stop and len(w) > 2}
+    if not exp_words:
+        return True
+    intersection = api_words & exp_words
+    union = api_words | exp_words
+    jaccard = len(intersection) / len(union) if union else 0
+    return jaccard >= threshold
 
 
 def _extract_title(raw_ref: str) -> str | None:
@@ -114,11 +149,22 @@ def _extract_title(raw_ref: str) -> str | None:
     return None
 
 
-def _pick_best(results: list[dict]) -> dict:
+def _pick_best(results: list[dict], expected_year: int = None) -> dict:
     # Priorité CrossRef > OpenAlex > Semantic Scholar
     priority = {"crossref": 0, "openalex": 1, "semantic_scholar": 2}
     ranked = sorted(results, key=lambda r: priority.get(r["source"], 99))
     best = ranked[0]
+
+    # Si l'année du best est aberrante (> 5 ans d'écart), préférer une source plus fiable
+    if expected_year and best.get("year"):
+        if abs(best["year"] - expected_year) > 5:
+            for r in ranked[1:]:
+                if r.get("year") and abs(r["year"] - expected_year) <= 5:
+                    # Garder l'abstract du best si disponible, mais utiliser la meilleure année
+                    abstract = best.get("abstract") or r.get("abstract")
+                    best = {**r, "abstract": abstract}
+                    break
+
     # CrossRef retourne rarement un abstract — on le complète depuis une autre source
     if not best.get("abstract"):
         for r in ranked[1:]:
@@ -133,8 +179,20 @@ def _check_consistency(match: dict, expected_year: int | None, expected_authors:
 
     if expected_year and match.get("year"):
         diff = abs(match["year"] - expected_year)
-        if diff > YEAR_TOLERANCE:
-            issues.append(f"Année incorrecte : trouvé {match['year']}, attendu {expected_year}")
+        # Tolérance élargie pour les papiers arXiv dont les APIs retournent
+        # l'année de la version récente (ex: 2025) plutôt que la publication originale.
+        # Si l'écart > 3 ans mais expected_year est l'année d'un arXiv classique,
+        # on vérifie si l'année API est plausible (pas > année courante).
+        current_year = datetime.date.today().year
+        api_year = match["year"]
+        # Si l'API retourne une année récente (≤ 2 ans) pour un vieux papier (≥ 3 ans),
+        # c'est un problème d'indexation de version, pas une erreur de l'auteur.
+        api_is_recent = api_year >= current_year - 2   # 2024 ou 2025 en 2026
+        paper_is_old = expected_year <= current_year - 3  # papier de 2023 ou avant
+        if api_is_recent and paper_is_old:
+            pass  # ne pas pénaliser
+        elif diff > YEAR_TOLERANCE:
+            issues.append(f"Année incorrecte : trouvé {api_year}, attendu {expected_year}")
 
     if expected_authors and match.get("authors"):
         found_families = {a.split()[-1].lower() for a in match["authors"] if a}

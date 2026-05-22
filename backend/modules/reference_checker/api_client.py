@@ -1,6 +1,7 @@
 """
 Clients pour CrossRef, OpenAlex et Semantic Scholar.
 """
+import re
 import httpx
 from .cache import cached_api_call
 from config import (
@@ -83,7 +84,7 @@ async def query_openalex(title: str = None, doi: str = None) -> dict | None:
 
         return {
             "source": "openalex",
-            "doi": item.get("doi", "").replace("https://doi.org/", ""),
+            "doi": (item.get("doi") or "").replace("https://doi.org/", "") or None,
             "title": item.get("title"),
             "authors": authors,
             "year": item.get("publication_year"),
@@ -102,10 +103,19 @@ async def query_semantic_scholar(title: str = None, doi: str = None) -> dict | N
 
     async with httpx.AsyncClient(timeout=10, headers=headers) as client:
         if doi:
-            resp = await client.get(
-                f"{SEMANTIC_SCHOLAR_BASE_URL}/paper/DOI:{doi}",
-                params={"fields": "title,authors,year,abstract,externalIds"},
-            )
+            # Pour les DOIs arXiv (10.48550/arxiv.XXXX), utiliser l'ID arXiv directement
+            arxiv_match = re.search(r"10\.48550/arxiv\.(\d+\.\d+)", doi.lower())
+            if arxiv_match:
+                arxiv_id = arxiv_match.group(1)
+                resp = await client.get(
+                    f"{SEMANTIC_SCHOLAR_BASE_URL}/paper/arXiv:{arxiv_id}",
+                    params={"fields": "title,authors,year,abstract,externalIds"},
+                )
+            else:
+                resp = await client.get(
+                    f"{SEMANTIC_SCHOLAR_BASE_URL}/paper/DOI:{doi}",
+                    params={"fields": "title,authors,year,abstract,externalIds"},
+                )
         elif title:
             resp = await client.get(
                 f"{SEMANTIC_SCHOLAR_BASE_URL}/paper/search",
