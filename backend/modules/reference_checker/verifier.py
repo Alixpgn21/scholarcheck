@@ -12,11 +12,27 @@ def _extract_metadata_from_raw(raw_ref: str) -> tuple[int | None, list[str]]:
     """Extrait l'année et les noms d'auteurs depuis un texte de référence brut."""
     year_match = re.search(r"\b(1[5-9]\d{2}|20\d{2})\b", raw_ref)
     year = int(year_match.group(1)) if year_match else None
-    # Noms avant la première parenthèse ou avant l'année : "Smith, J., & Doe, J. (2024)"
-    authors_part = re.split(r"\(\d{4}\)|\.\s+[A-Z]", raw_ref)[0]
+
+    # Couper AVANT le titre : le titre commence après les auteurs
+    # En LaTeX: auteurs se terminent avant ``Title'' ou "Title"
+    # En texte plat: auteurs se terminent avant une majuscule suivant un point
+    # On coupe aussi sur "DOI:", "URL:", "arXiv" pour éviter de capturer des métadonnées
+    authors_part = re.split(
+        r'``|"[A-Z]|\bDOI\b|\bURL\b|\barXiv\b|\bIn\s+[A-Z]|\bProceedings\b',
+        raw_ref
+    )[0]
+
     # Extraire les noms de famille (support tirets, camelCase, accents)
-    # Capture tout mot commençant par majuscule jusqu'à virgule/&/et al
-    surnames = re.findall(r"\b([A-Z][A-Za-zé\-]+)(?:,|\s+&|\s+et\s+al)", authors_part)
+    # On exclut les abréviations venues typiques (IEEE, CVPR, ICCV, NeurIPS, etc.)
+    VENUE_WORDS = {
+        "IEEE", "ACM", "CVPR", "ICCV", "ECCV", "NeurIPS", "NIPS", "ICLR",
+        "ICML", "EMNLP", "NAACL", "ACL", "AAAI", "IJCAI", "SIGIR", "KDD",
+        "WSDM", "WWW", "VLDB", "SIGMOD", "Blog", "OpenAI", "Google", "Meta",
+        "Journal", "Review", "Science", "Nature", "Letters", "Annual",
+        "Conference", "Workshop", "Symposium", "Transactions",
+    }
+    raw_surnames = re.findall(r"\b([A-Z][A-Za-zé\-]+)(?:,|\s+&|\s+et\s+al)", authors_part)
+    surnames = [s for s in raw_surnames if s not in VENUE_WORDS]
     return year, surnames
 
 
@@ -24,13 +40,18 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
     """
     Interroge les 3 APIs en parallèle et consolide le résultat.
     Si un DOI est trouvé dans le texte brut, on l'utilise en priorité.
+    Si le DOI ne retourne rien, fallback automatique par titre.
     """
     doi_match = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9a-z]+", raw_ref)
-    doi = doi_match.group(0) if doi_match else None
+    # Normaliser en minuscules pour les APIs (arXiv → arxiv)
+    doi = doi_match.group(0).lower() if doi_match else None
 
     # Auto-extraire année et auteurs si non fournis
     if expected_year is None and expected_authors is None:
         expected_year, expected_authors = _extract_metadata_from_raw(raw_ref)
+
+    # Extraire un titre propre pour la recherche fallback
+    title_for_search = _extract_title(raw_ref)
 
     if doi:
         crossref, openalex, semantic = await asyncio.gather(
@@ -38,14 +59,24 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
             query_openalex(doi=doi),
             query_semantic_scholar(doi=doi),
         )
-    else:
-        crossref, openalex, semantic = await asyncio.gather(
-            query_crossref(title=raw_ref),
-            query_openalex(title=raw_ref),
-            query_semantic_scholar(title=raw_ref),
-        )
+        results = [r for r in [crossref, openalex, semantic] if r]
 
-    results = [r for r in [crossref, openalex, semantic] if r]
+        # Fix 1: Si le DOI ne trouve rien, fallback par titre
+        if not results and title_for_search:
+            crossref, openalex, semantic = await asyncio.gather(
+                query_crossref(title=title_for_search),
+                query_openalex(title=title_for_search),
+                query_semantic_scholar(title=title_for_search),
+            )
+            results = [r for r in [crossref, openalex, semantic] if r]
+    else:
+        search_query = title_for_search or raw_ref
+        crossref, openalex, semantic = await asyncio.gather(
+            query_crossref(title=search_query),
+            query_openalex(title=search_query),
+            query_semantic_scholar(title=search_query),
+        )
+        results = [r for r in [crossref, openalex, semantic] if r]
 
     if not results:
         return {
@@ -70,6 +101,19 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
     }
 
 
+def _extract_title(raw_ref: str) -> str | None:
+    """Extrait le titre depuis une référence brute (entre backticks LaTeX ou guillemets)."""
+    # LaTeX: ``Title here''
+    m = re.search(r"``(.+?)''", raw_ref)
+    if m:
+        return m.group(1).strip()
+    # Guillemets doubles: "Title here"
+    m = re.search(r'"([^"]{10,})"', raw_ref)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
 def _pick_best(results: list[dict]) -> dict:
     # Priorité CrossRef > OpenAlex > Semantic Scholar
     priority = {"crossref": 0, "openalex": 1, "semantic_scholar": 2}
@@ -88,7 +132,8 @@ def _check_consistency(match: dict, expected_year: int | None, expected_authors:
     issues = []
 
     if expected_year and match.get("year"):
-        if abs(match["year"] - expected_year) > YEAR_TOLERANCE:
+        diff = abs(match["year"] - expected_year)
+        if diff > YEAR_TOLERANCE:
             issues.append(f"Année incorrecte : trouvé {match['year']}, attendu {expected_year}")
 
     if expected_authors and match.get("authors"):
@@ -103,5 +148,8 @@ def _check_consistency(match: dict, expected_year: int | None, expected_authors:
 
 def _compute_confidence(results: list[dict], issues: list[str]) -> float:
     base = min(len(results) / 3, 1.0)  # 0.33 / 0.66 / 1.0 selon nb de sources
-    penalty = len(issues) * 0.2
+    # Pénalité double si l'écart d'année est très grand (> 5 ans)
+    year_issues = sum(1 for i in issues if "Année incorrecte" in i)
+    author_issues = sum(1 for i in issues if "Auteurs" in i)
+    penalty = year_issues * 0.2 + author_issues * 0.2
     return round(max(0.0, base - penalty), 2)

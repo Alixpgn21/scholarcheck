@@ -49,7 +49,14 @@ async def upload_and_check(file: UploadFile = File(...)):
 
         semantic_result = None
         best = verification.get("best_match")
-        if best and best.get("abstract"):
+        # Fix 5: Ne lancer NLI que si le papier a été trouvé avec une confiance suffisante
+        # (évite de comparer avec l'abstract d'un mauvais papier trouvé par titre)
+        if (
+            best
+            and best.get("abstract")
+            and verification.get("status") != "not_found"
+            and verification.get("confidence", 0) >= 0.3
+        ):
             sentences = extract_citing_sentences(parsed["text"], key)
             if sentences:
                 semantic_result = compute_similarity(sentences[0], best["abstract"])
