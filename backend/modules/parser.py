@@ -141,11 +141,15 @@ def extract_citing_sentences(text: str, cite_key: str) -> list[str]:
     for s in sentences:
         if cite_key not in s:
             continue
-        # Fix 6: Supprimer les artefacts de conversion LaTeX
+        # Fix 6 + Fix 5: Supprimer les artefacts de conversion LaTeX
         # §.§ Section titles, symboles §, commandes LaTeX résiduelles
         clean = re.sub(r"§[\s§.]*", "", s)
         clean = re.sub(r"\\[a-zA-Z]+\{[^}]*\}", "", clean)  # \cmd{...}
         clean = re.sub(r"\s{2,}", " ", clean).strip()
+        # Fix 5: Supprimer les titres de section en tête de phrase
+        # ex: "Contested Areas The vaccine..." → "The vaccine..."
+        # Un bloc de mots Title-Cased suivi d'une phrase normale
+        clean = re.sub(r"^(?:[A-Z][a-zA-Z]+\s+){1,5}(?=[A-Z][a-z])", "", clean).strip()
         # Ne garder que les phrases suffisamment longues (évite les headers seuls)
         if len(clean) > 20:
             result.append(clean)

@@ -45,6 +45,9 @@ def _extract_metadata_from_raw(raw_ref: str) -> tuple[int | None, list[str]]:
     }
     raw_surnames = re.findall(r"\b([A-Z][A-Za-zé\-]+)(?:,|\s+&|\s+et\s+al)", authors_part)
     surnames = [s for s in raw_surnames if s not in VENUE_WORDS]
+    # Fix 2a: Limiter à 5 auteurs max — les APIs tronquent souvent les longues listes
+    # ce qui génère des faux "manquants" pour les auteurs 6, 7, 8...
+    surnames = surnames[:5]
     return year, surnames
 
 
@@ -57,6 +60,17 @@ async def verify_reference(raw_ref: str, expected_year: int = None, expected_aut
     doi_match = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9a-z]+", raw_ref)
     # Normaliser en minuscules pour les APIs (arXiv → arxiv)
     doi = doi_match.group(0).lower() if doi_match else None
+
+    # Fix 1: DOIs avec préfixes connus comme fictifs/test → not_found immédiat
+    FAKE_DOI_PREFIXES = ("10.5555/", "10.9999/", "10.1234/", "10.9876/")
+    if doi and any(doi.startswith(p) for p in FAKE_DOI_PREFIXES):
+        return {
+            "status": "not_found",
+            "confidence": 0.0,
+            "message": "Aucune source n'a trouvé cette référence.",
+            "sources": [],
+            "best_match": None,
+        }
 
     # Auto-extraire année et auteurs si non fournis
     if expected_year is None and expected_authors is None:
@@ -198,8 +212,10 @@ def _check_consistency(match: dict, expected_year: int | None, expected_authors:
         found_families = {a.split()[-1].lower() for a in match["authors"] if a}
         expected_families = {a.split()[-1].lower() for a in expected_authors if a}
         missing = expected_families - found_families
-        if missing:
-            issues.append(f"Auteurs non trouvés : {', '.join(missing)}")
+        # Fix 2b: Ne signaler que si plus de la moitié des auteurs attendus sont absents
+        # — les APIs tronquent souvent les listes d'auteurs
+        if missing and len(missing) / len(expected_families) > 0.5:
+            issues.append(f"Auteurs non trouvés : {', '.join(sorted(missing))}")
 
     return issues
 

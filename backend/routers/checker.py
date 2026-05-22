@@ -103,11 +103,13 @@ def _build_summary(reports: list[ReferenceReport]) -> dict:
         1 for r in reports
         if r.semantic and r.semantic.get("label") == "suspect"
     )
+    # Fix 6: warnings valent 0.5 — une ref trouvée avec erreur n'est pas une hallucination
+    score_num = ok * 1.0 + warning * 0.5
     return {
         "ok": ok,
         "warning": warning,
         "not_found": not_found,
         "suspect_semantic": suspect_semantic,
         "hallucination_risk": not_found + suspect_semantic,
-        "score": round(ok / total * 100, 1) if total else 0,
+        "score": round(score_num / total * 100, 1) if total else 0,
     }

@@ -36,17 +36,24 @@ def compute_similarity(citing_sentence: str, abstract: str) -> dict:
     entailment_prob = probs[1]
     neutral_prob = probs[2]
     
-    if entailment_prob > 0.45:
-        label = "pertinent"
-        reason = "L'abstract soutient logiquement la phrase citante (Entailment)."
-        score = entailment_prob
-    elif contradiction_prob > 0.45:
+    # Fix 4: Seuils relevés pour réduire les faux positifs
+    # suspect  : contradiction franche   (> 0.60)
+    # pertinent: entailment clair         (> 0.50)
+    # ambigu   : signal modéré, > 0.70   (sinon pas de badge)
+    if contradiction_prob > 0.60:
         label = "suspect"
         reason = "L'abstract contredit la phrase citante (Contradiction)."
         score = contradiction_prob
-    else:
+    elif entailment_prob > 0.50:
+        label = "pertinent"
+        reason = "L'abstract soutient logiquement la phrase citante (Entailment)."
+        score = entailment_prob
+    elif max(contradiction_prob, entailment_prob, neutral_prob) > 0.70:
         label = "ambigu"
         reason = "L'abstract ne confirme ni n'infirme clairement la phrase citante (Neutral)."
         score = neutral_prob
+    else:
+        # Signal trop faible — pas de badge NLI
+        return {"score": None, "label": None, "reason": "Signal NLI insuffisant."}
 
     return {"score": round(float(score), 3), "label": label, "reason": reason}
