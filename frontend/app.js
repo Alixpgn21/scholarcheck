@@ -1,42 +1,78 @@
 const API = "http://localhost:8000";
 
-function switchTab(name) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+function switchTab(name, btnEl) {
+  document.querySelectorAll(".tab-btn").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".tab-content").forEach(t => {
     t.classList.remove("active");
     t.classList.add("hidden");
   });
-  event.target.classList.add("active");
+  const btn = btnEl || document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  btn.classList.add("active");
   const section = document.getElementById(`tab-${name}`);
   section.classList.remove("hidden");
   section.classList.add("active");
+  moveIndicator(btn);
+}
+
+function moveIndicator(activeBtn) {
+  const indicator = document.getElementById("tab-indicator");
+  const nav = document.getElementById("tab-nav");
+  if (!indicator || !nav) return;
+  const navRect = nav.getBoundingClientRect();
+  const btnRect = activeBtn.getBoundingClientRect();
+  const left = btnRect.left - navRect.left - 3; // account for nav padding
+  indicator.style.left = left + "px";
+  indicator.style.width = btnRect.width + "px";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Init indicator position on first active tab
+  const activeBtn = document.querySelector(".tab-btn.active");
+  if (activeBtn) {
+    // Small delay so layout is settled
+    requestAnimationFrame(() => moveIndicator(activeBtn));
+  }
+
   document.getElementById("checker-file").addEventListener("change", (e) => {
     const file = e.target.files[0];
-    const label = document.querySelector("label[for='checker-file']");
+    const label = document.querySelector(".upload-text");
     if (file) {
       label.textContent = `Fichier prêt : ${file.name}`;
-      label.style.color = "#48bb78";
+      label.style.color = "var(--green)";
     } else {
-      label.textContent = "Glisse ton manuscrit ici ou clique pour choisir";
+      label.textContent = "Glisse ton manuscrit ici ou clique";
       label.style.color = "";
     }
   });
 
   document.getElementById("rw-files").addEventListener("change", (e) => {
     const files = e.target.files;
-    const label = document.querySelector("label[for='rw-files']");
+    const label = document.getElementById("rw-files-label");
     if (files.length > 0) {
-      label.textContent = `Option 1 — ${files.length} fichier(s) sélectionné(s)`;
-      label.style.color = "#48bb78";
+      label.textContent = `${files.length} fichier(s) sélectionné(s)`;
+      label.style.color = "var(--green)";
     } else {
-      label.textContent = "Option 1 — Upload corpus (fichiers .tex / .docx / .md)";
+      label.textContent = "Choisir des fichiers .tex / .docx / .md";
       label.style.color = "";
     }
   });
+
+  checkApiStatus();
 });
+
+async function checkApiStatus() {
+  const dot = document.querySelector(".api-dot");
+  try {
+    const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      dot.classList.remove("offline");
+    } else {
+      dot.classList.add("offline");
+    }
+  } catch {
+    dot.classList.add("offline");
+  }
+}
 
 // ─── MODULE 1 : CHECKER ────────────────────────────────────────────────────
 
@@ -45,7 +81,7 @@ async function runChecker() {
   const resultDiv = document.getElementById("checker-result");
 
   if (!fileInput.files.length) {
-    alert("Sélectionne un fichier à analyser.");
+    alert("Selectionne un fichier a analyser.");
     return;
   }
 
@@ -65,7 +101,7 @@ async function runChecker() {
     const data = await res.json();
     resultDiv.innerHTML = renderCheckerResult(data);
   } catch (e) {
-    resultDiv.innerHTML = error("Impossible de contacter l'API. Le serveur est-il lancé ?");
+    resultDiv.innerHTML = error("Impossible de contacter l'API. Le serveur est-il lance ?");
   }
 }
 
@@ -73,13 +109,13 @@ function renderCheckerResult(data) {
   const s = data.summary;
   const scoreColor = s.score >= 80 ? "ok" : s.score >= 50 ? "warning" : "danger";
 
-  const cards = `
-    <div class="summary-grid">
-      <div class="summary-card"><div class="value ${scoreColor}">${s.score}%</div><div class="label">Score global</div></div>
-      <div class="summary-card"><div class="value ok">${s.ok}</div><div class="label">Vérifiées</div></div>
-      <div class="summary-card"><div class="value warning">${s.warning}</div><div class="label">Avertissements</div></div>
-      <div class="summary-card"><div class="value danger">${s.not_found}</div><div class="label">Introuvables</div></div>
-      <div class="summary-card"><div class="value danger">${s.suspect_semantic}</div><div class="label">Suspectes</div></div>
+  const metrics = `
+    <div class="metrics-row">
+      <div class="metric"><div class="number ${scoreColor}">${s.score}%</div><div class="desc">Score</div></div>
+      <div class="metric"><div class="number ok">${s.ok}</div><div class="desc">Verifiees</div></div>
+      <div class="metric"><div class="number warning">${s.warning}</div><div class="desc">Alertes</div></div>
+      <div class="metric"><div class="number danger">${s.not_found}</div><div class="desc">Introuvables</div></div>
+      <div class="metric"><div class="number danger">${s.suspect_semantic}</div><div class="desc">Suspectes</div></div>
     </div>`;
 
   const refs = data.reports.map(r => {
@@ -87,14 +123,15 @@ function renderCheckerResult(data) {
       ? `<span class="badge badge-${r.semantic.label}">${r.semantic.label} (${r.semantic.score})</span>`
       : "";
     const sentences = r.citing_sentences.length
-      ? `<div class="ref-semantic">« ${r.citing_sentences[0].substring(0, 150)}… »</div>`
+      ? `<div class="ref-semantic">&laquo; ${escHtml(r.citing_sentences[0].substring(0, 150))}&hellip; &raquo;</div>`
       : "";
     return `
       <div class="ref-card status-${r.verification.status}">
-        <div class="ref-key">${escHtml(r.cite_key)}
+        <div class="ref-header">
+          <span class="ref-key">${escHtml(r.cite_key)}</span>
           <span class="badge badge-${r.verification.status}">${r.verification.status}</span>
           ${semBadge}
-          <span style="color:#718096;font-size:0.75rem;margin-left:8px">confiance: ${r.verification.confidence}</span>
+          <span class="ref-confidence">${r.verification.confidence}</span>
         </div>
         <div class="ref-raw">${escHtml(r.raw_text)}</div>
         <div class="ref-message">${escHtml(r.verification.message)}</div>
@@ -102,7 +139,14 @@ function renderCheckerResult(data) {
       </div>`;
   }).join("");
 
-  return `<h3 style="margin-bottom:16px">Rapport — ${data.total_references} référence(s) · format ${data.format}</h3>${cards}${refs}`;
+  return `
+    <div class="report-title">
+      Rapport
+      <span class="tag">${data.total_references} ref.</span>
+      <span class="tag">${data.format}</span>
+    </div>
+    ${metrics}
+    <div class="ref-list">${refs}</div>`;
 }
 
 // ─── MODULE 2 : RELATED WORK ───────────────────────────────────────────────
@@ -118,7 +162,7 @@ async function runRelatedWork() {
     return;
   }
 
-  resultDiv.innerHTML = loader("Clustering et génération en cours (peut prendre 30–60 s)...");
+  resultDiv.innerHTML = loader("Clustering et generation en cours (30-60 s)...");
   resultDiv.classList.remove("hidden");
 
   try {
@@ -144,21 +188,27 @@ async function runRelatedWork() {
 
     resultDiv.innerHTML = renderRWResult(data);
   } catch (e) {
-    resultDiv.innerHTML = error("Impossible de contacter l'API. Le serveur est-il lancé ?");
+    resultDiv.innerHTML = error("Impossible de contacter l'API. Le serveur est-il lance ?");
   }
 }
 
 function renderRWResult(data) {
   const clusterTags = (data.clusters || []).map(c =>
-    `<span class="rw-cluster-tag">${escHtml(c.label)} (${c.documents.length} docs)</span>`
+    `<span class="rw-cluster-tag">${escHtml(c.label)} (${c.documents.length})</span>`
   ).join("");
 
   const rwText = escHtml(data.related_work);
 
   return `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3>${data.document_count} documents · ${data.cluster_count} thèmes identifiés</h3>
-      <button class="copy-btn" onclick="copyText()">Copier le texte</button>
+    <div class="rw-header">
+      <h3>${data.document_count} documents &middot; ${data.cluster_count} themes</h3>
+      <button class="copy-btn" onclick="copyText()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        Copier
+      </button>
     </div>
     <div class="rw-clusters">${clusterTags}</div>
     <div class="rw-text" id="rw-text-output">${rwText}</div>`;
@@ -167,6 +217,16 @@ function renderRWResult(data) {
 function copyText() {
   const el = document.getElementById("rw-text-output");
   navigator.clipboard.writeText(el.innerText);
+  const btn = document.querySelector(".copy-btn");
+  const original = btn.innerHTML;
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copie !`;
+  btn.style.color = "var(--green)";
+  btn.style.borderColor = "var(--green)";
+  setTimeout(() => {
+    btn.innerHTML = original;
+    btn.style.color = "";
+    btn.style.borderColor = "";
+  }, 1500);
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -176,7 +236,7 @@ function loader(msg) {
 }
 
 function error(msg) {
-  return `<div style="color:#fc8181;padding:16px">Erreur : ${escHtml(msg)}</div>`;
+  return `<div style="color:var(--red);padding:16px;font-size:0.85rem">Erreur : ${escHtml(msg)}</div>`;
 }
 
 function escHtml(str) {

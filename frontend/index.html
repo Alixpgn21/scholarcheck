@@ -4,57 +4,134 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ScholarCheck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>ScholarCheck</h1>
-    <p>Audit bibliographique et génération de Related Work</p>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+
+      <a class="brand" href="#">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+        <span>ScholarCheck</span>
+      </a>
+
+      <nav class="tab-nav" id="tab-nav">
+        <button class="tab-btn active" data-tab="checker" onclick="switchTab('checker', this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          Vérificateur
+        </button>
+        <button class="tab-btn" data-tab="relatedwork" onclick="switchTab('relatedwork', this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Related Work
+        </button>
+        <div class="tab-indicator" id="tab-indicator"></div>
+      </nav>
+
+      <div class="api-badge" id="api-badge">
+        <span class="api-dot"></span>
+        <span class="api-label">API</span>
+      </div>
+
+    </div>
   </header>
 
-  <main>
-    <!-- TABS -->
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab('checker')">Vérificateur de références</button>
-      <button class="tab" onclick="switchTab('relatedwork')">Générateur Related Work</button>
-    </div>
+  <main class="page">
 
     <!-- MODULE 1 : CHECKER -->
     <section id="tab-checker" class="tab-content active">
-      <h2>Auditer un manuscrit</h2>
-      <p class="hint">Formats acceptés : .tex, .docx, .md</p>
-      <div class="upload-zone" id="checker-drop">
-        <input type="file" id="checker-file" accept=".tex,.docx,.md,.markdown" />
-        <label for="checker-file">Glisse ton manuscrit ici ou clique pour choisir</label>
+      <div class="page-header">
+        <h1>Audit bibliographique</h1>
+        <p>Vérifie l'authenticité de chaque référence citée dans ton manuscrit.</p>
       </div>
-      <button class="btn-primary" onclick="runChecker()">Analyser</button>
 
-      <div id="checker-result" class="result hidden"></div>
+      <div class="card">
+        <div class="card-section-label">Document source</div>
+        <p class="card-hint">Formats acceptés : .tex, .docx, .md</p>
+        <div class="upload-zone" id="checker-drop">
+          <input type="file" id="checker-file" accept=".tex,.docx,.md,.markdown" />
+          <label for="checker-file">
+            <div class="upload-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <span class="upload-text">Glisse ton manuscrit ici ou clique</span>
+            <span class="upload-hint">.tex · .docx · .md</span>
+          </label>
+        </div>
+        <button class="btn-primary" onclick="runChecker()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Lancer l'analyse
+        </button>
+      </div>
+
+      <div id="checker-result" class="result-area hidden"></div>
     </section>
 
     <!-- MODULE 2 : RELATED WORK -->
     <section id="tab-relatedwork" class="tab-content hidden">
-      <h2>Générer une section Related Work</h2>
-
-      <div class="form-group">
-        <label>Sujet de l'article</label>
-        <input type="text" id="rw-topic" placeholder="Ex: Retrieval-Augmented Generation for scientific writing" />
+      <div class="page-header">
+        <h1>Générateur Related Work</h1>
+        <p>Produit une section Related Work structurée à partir de ton corpus.</p>
       </div>
 
-      <div class="form-group">
-        <label>Option 1 — Upload corpus (fichiers .tex / .docx / .md)</label>
-        <input type="file" id="rw-files" multiple accept=".tex,.docx,.md,.markdown" />
+      <div class="card">
+        <div class="field">
+          <label for="rw-topic">Sujet de recherche</label>
+          <input type="text" id="rw-topic" placeholder="Ex: Retrieval-Augmented Generation for scientific writing" />
+        </div>
+
+        <div class="field">
+          <label for="rw-files">Option A — Fichiers corpus</label>
+          <div class="file-input-wrap">
+            <input type="file" id="rw-files" multiple accept=".tex,.docx,.md,.markdown" />
+            <div class="file-input-display">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                <polyline points="13 2 13 9 20 9"/>
+              </svg>
+              <span id="rw-files-label">Choisir des fichiers .tex / .docx / .md</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"><span>ou</span></div>
+
+        <div class="field">
+          <label for="rw-dois">Option B — Liste de DOIs</label>
+          <textarea id="rw-dois" rows="4" placeholder="10.1145/3442188.3445922&#10;10.18653/v1/2020.acl-main.600"></textarea>
+        </div>
+
+        <button class="btn-primary" onclick="runRelatedWork()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Générer
+        </button>
       </div>
 
-      <div class="form-group">
-        <label>Option 2 — Liste de DOIs (un par ligne)</label>
-        <textarea id="rw-dois" rows="5" placeholder="10.1145/3442188.3445922&#10;10.18653/v1/2020.acl-main.600"></textarea>
-      </div>
-
-      <button class="btn-primary" onclick="runRelatedWork()">Générer</button>
-
-      <div id="rw-result" class="result hidden"></div>
+      <div id="rw-result" class="result-area hidden"></div>
     </section>
+
   </main>
 
   <script src="app.js"></script>
