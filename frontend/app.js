@@ -16,13 +16,10 @@ function switchTab(name, btnEl) {
 
 function moveIndicator(activeBtn) {
   const indicator = document.getElementById("tab-indicator");
-  const nav = document.getElementById("tab-nav");
-  if (!indicator || !nav) return;
-  const navRect = nav.getBoundingClientRect();
-  const btnRect = activeBtn.getBoundingClientRect();
-  const left = btnRect.left - navRect.left - 3; // account for nav padding
-  indicator.style.left = left + "px";
-  indicator.style.width = btnRect.width + "px";
+  if (!indicator || !activeBtn) return;
+  // offsetLeft is relative to offsetParent (.tab-nav has position:relative)
+  indicator.style.left  = activeBtn.offsetLeft + "px";
+  indicator.style.width = activeBtn.offsetWidth + "px";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -236,7 +233,7 @@ function loader(msg) {
 }
 
 function error(msg) {
-  return `<div style="color:var(--red);padding:16px;font-size:0.85rem">Erreur : ${escHtml(msg)}</div>`;
+  return `<div class="error-msg">Erreur : ${escHtml(msg)}</div>`;
 }
 
 function escHtml(str) {
