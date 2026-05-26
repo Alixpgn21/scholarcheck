@@ -101,14 +101,30 @@ related_work_generator/
 
 ## How to Test
 
-### Step 1: Upload Corpus
+### Step 1: Upload Corpus (Méthode A — fichiers .md)
 
 ```
 1. Go to http://localhost:8000
 2. Tab 2: "Related Work Generator"
-3. Click "Upload Corpus" 
-4. Select corpus folder (e.g., corpus_1_rag_basics)
+3. Champ "Option A": sélectionner TOUS les fichiers .md d'un corpus
+   ex: corpus_1_rag_basics/*.md (5 fichiers)
+4. Entrer un topic dans le champ "Sujet de recherche"
+5. Click "Générer"
 ```
+
+### Step 1b: Via DOIs (Méthode B — dois.txt)
+
+```
+1. Go to http://localhost:8000
+2. Tab 2: "Related Work Generator"
+3. Ouvrir le fichier dois.txt du corpus voulu
+4. Coller les DOIs dans "Option B — Liste de DOIs"
+5. Entrer un topic
+6. Click "Générer"
+```
+
+**Formats acceptés:** `.tex`, `.docx`, `.md` (pas `.json`)  
+**Corpus disponibles:** chaque dossier contient des fichiers `.md` + `dois.txt`
 
 Expected result: 
 - ✅ All papers extracted and indexed
@@ -119,7 +135,7 @@ Expected result:
 
 ```
 1. Enter a topic from topics.txt
-2. Click "Generate Related Work"
+2. Click "Générer"
 3. Wait for processing (10-30 seconds typical)
 ```
 

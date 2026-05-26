@@ -1,0 +1,11 @@
+# Neural Machine Translation by Jointly Learning to Align and Translate
+
+**Authors:** Dzmitry Bahdanau, Kyunghyun Cho, Yoshua Bengio
+**Year:** 2014
+**Venue:** ICLR
+**DOI:** 10.48550/arXiv.1409.0473
+**URL:** https://arxiv.org/abs/1409.0473
+
+## Abstract
+
+Neural machine translation is a recently proposed approach to machine translation. Unlike the traditional statistical machine translation, the neural machine translation model is a single integrated model that reads a source sentence and generates a target sentence. Recent work on neural machine translation has shown to be very promising. In this work, we conjecture that the use of a fixed-length vector is a bottleneck in improving the performance of this approach, and propose a method to address this limitation. We introduce an attention mechanism that learns to (soft-)search for parts of a source sentence that are relevant to predicting a target word, without having to form these parts as a hard segment explicitly. With this extension, we show significant improvements on the WMT-14 English-to-French and English-to-German translation tasks, establishing a new state-of-the-art BLEU score of 37.15 on WMT-14 English-to-French.

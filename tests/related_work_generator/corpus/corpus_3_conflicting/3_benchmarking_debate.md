@@ -1,0 +1,11 @@
+# On the Dangers of Stochastic Parrots: Can Language Models be Too Large?
+
+**Authors:** Timnit Gebru, Jamie Buolamwini, Angelina Balcan, Kate Crawford, Rumman Chowdhury
+**Year:** 2021
+**Venue:** FAccT
+**DOI:** 10.1145/3442188.3445922
+**URL:** https://arxiv.org/abs/2010.16197
+
+## Abstract
+
+The recent trend of scaling language models larger and larger raises important questions about the sustainability and societal impact of large language models. While larger models show improvements on benchmarks, they also become increasingly difficult to study, reproduce, and deploy responsibly. We highlight several risks including environmental costs, potential for harmful amplification of biases, lack of interpretability, and difficulties in understanding failure modes. We argue that the field should prioritize developing smaller, more interpretable models that can be more thoroughly studied and audited. We challenge the assumption that bigger is always better and call for more nuanced research into the trade-offs of scale.
